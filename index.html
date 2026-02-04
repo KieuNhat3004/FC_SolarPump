@@ -586,6 +586,7 @@ body::before {
         <div class="status-row"><span><i class="fas fa-wave-square"></i> TẦN SỐ CHẠY :</span><span id="tanSoRun">0 Hz</span></div>
         <div class="status-row"><span><i class="fas fa-bolt"></i> DÒNG ĐIỆN TẢI:</span><span id="ampe">0 A</span></div>
         <div class="status-row"><span><i class="fas fa-plug"></i> ĐIỆN ÁP TẢI:</span><span id="volt">0 V</span></div>
+        <div class="status-row"><span><i class="fas fa-solar-panel"></i> ĐIỆN ÁP PV :</span><span id="volt_pv">0 V</span></div>
         <div class="status-row"><span><i class="fas fa-fan"></i> TỐC ĐỘ :</span><span id="rpm">0 RPM</span></div>
         <div class="status-row" id="errorRow"><span><i class="fas fa-triangle-exclamation"></i> MÃ LỖI :</span><span id="erorrCode">0</span></div>
       </div>
@@ -607,6 +608,7 @@ body::before {
     const tansoOUT = document.getElementById('tanSoRun');
     const Ampe = document.getElementById('ampe');
     const Volt = document.getElementById('volt');
+    const volt_pv = document.getElementById("volt_pv"); 
     const MaLoi = document.getElementById('erorrCode');
     const TrangThai = document.getElementById('statusCommand'); 
     const hzSetOutput = document.getElementById('output'); 
@@ -620,6 +622,7 @@ body::before {
     
     // Variable to store the current set frequency by the user
     let currentSetHz = 0; 
+    let isInverterRunning = false; // true = đang chạy, false = đang dừng
 
     // Updated function to update the "Set: ... / Run: ..." display
     function updateFrequencyDisplay(setHz, runHzValue) {
@@ -671,10 +674,11 @@ body::before {
           configTansoRun = configuration.realtime_configs[0];
           configAmpe = configuration.realtime_configs[1];
           configVolt = configuration.realtime_configs[2];
-          configErorrCode = configuration.realtime_configs[3];
-          configStatus = configuration.realtime_configs[4];
-          configHzSet = configuration.realtime_configs[5]; 
-          configRpm = configuration.realtime_configs[6]; 
+          configVoltPV = configuration.realtime_configs[3];
+          configErorrCode = configuration.realtime_configs[4];
+          configStatus = configuration.realtime_configs[5];
+          configHzSet = configuration.realtime_configs[6]; 
+          configRpm = configuration.realtime_configs[7]; 
         actions = configuration.actions || []; 
         if (actions.length < 3) {
             console.warn("Actions configuration might be insufficient. Expected at least 3 for Set, Start, Stop. Found:", actions.length);
@@ -685,6 +689,7 @@ body::before {
         const valueHzOUT = values[configTansoRun?.id]?.value ?? '0'; 
         const valueAmpe = values[configAmpe?.id]?.value ?? '0';
         const valueVolt = values[configVolt?.id]?.value ?? '0';
+        const valueVoltPV = values[configVoltPV?.id]?.value ?? '0';
         const valueErorr = values[configErorrCode?.id]?.value ?? '0';
         const valueStastus = values[configStatus?.id]?.value ?? 'ĐANG DỪNG'; 
         const valueHzSetFromDevice = values[configHzSet?.id]?.value; 
@@ -693,6 +698,7 @@ body::before {
         tansoOUT.textContent = `${valueHzOUT} Hz`;
         Ampe.textContent = `${valueAmpe} A`;
         Volt.textContent = `${valueVolt} V`;
+        volt_pv.textContent=`${valueVoltPV} V`;
         MaLoi.textContent = valueErorr;
         rpm.textContent=`${valueRpm} RPM`;
 
@@ -716,20 +722,42 @@ body::before {
 
         const statusString = String(valueStastus); 
         
+        // if (statusString === "1" || statusString === "2") { // ĐANG CHẠY
+        //   TrangThai.innerHTML = `<i class="fas fa-fan custom-spin" style="margin-right: 8px;"></i>ĐANG CHẠY`;
+        //   TrangThai.style.color = 'var(--status-running-text-color)';
+        //   TrangThai.style.backgroundColor = 'var(--status-running-bg-color)';
+        //   TrangThai.style.borderColor = 'var(--status-running-border-color)';
+        //   TrangThai.classList.add('blink-running'); // Add blinking class
+        //   const icon = TrangThai.querySelector('i');
+        //   if(icon) icon.style.color = 'var(--status-running-text-color)';
+        // } else { // ĐANG DỪNG
+        //   TrangThai.innerHTML = `<i class="fas fa-fan" style="margin-right: 8px;"></i>ĐANG DỪNG`;
+        //   TrangThai.style.color = 'var(--status-stopped-text-color)';
+        //   TrangThai.style.backgroundColor = 'var(--status-stopped-bg-color)';
+        //   TrangThai.style.borderColor = 'var(--status-stopped-border-color)';
+        //   TrangThai.classList.remove('blink-running'); // Remove blinking class
+        //   const icon = TrangThai.querySelector('i');
+        //   if(icon) icon.style.color = 'var(--status-stopped-text-color)';
+        // }
+
         if (statusString === "1" || statusString === "2") { // ĐANG CHẠY
+          isInverterRunning = true;
+
           TrangThai.innerHTML = `<i class="fas fa-fan custom-spin" style="margin-right: 8px;"></i>ĐANG CHẠY`;
           TrangThai.style.color = 'var(--status-running-text-color)';
           TrangThai.style.backgroundColor = 'var(--status-running-bg-color)';
           TrangThai.style.borderColor = 'var(--status-running-border-color)';
-          TrangThai.classList.add('blink-running'); // Add blinking class
+          TrangThai.classList.add('blink-running');
           const icon = TrangThai.querySelector('i');
           if(icon) icon.style.color = 'var(--status-running-text-color)';
         } else { // ĐANG DỪNG
+          isInverterRunning = false;
+
           TrangThai.innerHTML = `<i class="fas fa-fan" style="margin-right: 8px;"></i>ĐANG DỪNG`;
           TrangThai.style.color = 'var(--status-stopped-text-color)';
           TrangThai.style.backgroundColor = 'var(--status-stopped-bg-color)';
           TrangThai.style.borderColor = 'var(--status-stopped-border-color)';
-          TrangThai.classList.remove('blink-running'); // Remove blinking class
+          TrangThai.classList.remove('blink-running');
           const icon = TrangThai.querySelector('i');
           if(icon) icon.style.color = 'var(--status-stopped-text-color)';
         }
@@ -748,6 +776,17 @@ body::before {
       if (!isNaN(numericValue)) {
         numericValue = Math.max(0, Math.min(numericValue, 50)); 
         numericValue = Math.round(numericValue); 
+
+        // CHẶN GIẢM TẦN SỐ KHI ĐANG CHẠY
+      if (numericValue < currentSetHz && isInverterRunning) {
+        outputDisplay.textContent = `Không hợp lệ! Muốn giảm tần số phải DỪNG biến tần trước. (Hiện đang chạy, Set=${currentSetHz}Hz)`;
+        outputDisplay.style.color = "#ff4757";
+
+        // rung nhẹ input (tận dụng shake bạn đã có)
+        inputElement.style.animation = "shake 0.5s ease-in-out";
+        setTimeout(() => { inputElement.style.animation = ""; }, 500);
+        return; // không gửi action
+      }
 
         currentSetHz = numericValue; 
         localStorage.setItem('savedFrequency', numericValue); 
@@ -788,11 +827,25 @@ body::before {
             frequencyInput.value = newValue;
         });
 
+        // arrowDownButton.addEventListener('click', () => {
+        //     let currentValue = parseFloat(frequencyInput.value);
+        //     if (isNaN(currentValue)) currentValue = 1; 
+        //     let newValue = Math.max(Math.round(currentValue - 1), 0);
+        //     frequencyInput.value = newValue;
+        // });
+
         arrowDownButton.addEventListener('click', () => {
-            let currentValue = parseFloat(frequencyInput.value);
-            if (isNaN(currentValue)) currentValue = 1; 
-            let newValue = Math.max(Math.round(currentValue - 1), 0);
-            frequencyInput.value = newValue;
+          if (isInverterRunning) {
+            hzSetOutput.textContent = `Không thể giảm khi đang CHẠY. Hãy DỪNG trước.`;
+            hzSetOutput.style.color = "#ff4757";
+            setTimeout(() => { hzSetOutput.style.color = "var(--output-text-color)"; }, 1200);
+            return;
+          }
+
+          let currentValue = parseFloat(frequencyInput.value);
+          if (isNaN(currentValue)) currentValue = 1;
+          let newValue = Math.max(Math.round(currentValue - 1), 0);
+          frequencyInput.value = newValue;
         });
     }
 
